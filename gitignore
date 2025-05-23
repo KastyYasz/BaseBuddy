@@ -1,0 +1,10 @@
+# Ignore compiled binaries
+*.o
+*.out
+*.exe
+basebuddy
+
+# Editor/OS files
+*.swp
+*~
+.DS_Store
