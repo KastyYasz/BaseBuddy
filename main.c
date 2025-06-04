@@ -1,160 +1,191 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
 #include <stdbool.h>
-#include <stdio.h>   // Standard input and output
-#include <string.h>  // String manipulation
-#include <ctype.h>   // Character verification and conversion
-#include <math.h>    // Math functions (e.g., pow)
-#include <stdlib.h>  // Helper functions (e.g., atoi)
+#include <gmp.h>
 
-#define TAM 100  // Maximum input buffer size
+#define TAM 100
+#define MAX_BASES 10
 
-// Function declarations
+// Protótipos das funções
 void base_conversao_digitos(int base, char lista_digitos[]);
 bool adicionarLista(int lista[], char lista_numero[], int base_entrada);
-long long int ConverterBase10(int lista_entrada[], int base_inicial, char lista_input[]);
-void ConverterBaseFinal(long long int valor_base_10, int base_final);
+void ConverterBase10(mpz_t resultado, int lista_entrada[], int base_inicial, char lista_input[]);
+void ConverterBaseFinal(mpz_t valor_base_10, int base_final, char resultado[]);
 
-int main(void)
-{
-    int numeroConvertidoInteiro[TAM]; // Array that stores the converted digits as integers
+int main(void) {
+    int numeroConvertidoInteiro[TAM] = {0};
     int baseEntrada;
-    char numeroUsuario[TAM];         // String with the number entered by the user
-    int baseDesejada;
-    char digitosBaseDesejada[37];    // List of valid characters for the target base
-    char digitosBaseEntrada[37];     // List of valid characters for the source base
+    char numeroUsuario[TAM];
+    char digitosBaseEntrada[37];
+    mpz_t valor_base_10;
+    int basesDesejadas[MAX_BASES];
+    int quantidade_bases;
+    char resultados[MAX_BASES][TAM];
 
-    // Input of the number to be converted
+    mpz_init(valor_base_10);
+
     printf("\n ------------------------------------------------------------\n");
-    printf("| Enter the Number and the Base for conversion \n");
+    printf("| Conversor de Bases Numéricas (2 a 36) com Múltiplas Saídas |\n");
     printf(" ------------------------------------------------------------\n\n");
 
-    printf("  Enter the number to convert: ");
+    // Etapa 1: Ler número e base de entrada
+    printf("  Digite o número que deseja converter: ");
     fgets(numeroUsuario, TAM, stdin);
-    numeroUsuario[strcspn(numeroUsuario, "\n")] = 0;  // Removes newline character from the string
+    numeroUsuario[strcspn(numeroUsuario, "\n")] = '\0';
 
-    // Input and validation of the source base
-    do
-    {
-        printf("  Enter the base of the number (between 2 and 36): ");
-        scanf("%d", &baseEntrada);
-        while(getchar() != '\n'); // Clears input buffer
+    if (strlen(numeroUsuario) == 0) {
+        printf("Erro: Nenhum número foi digitado.\n");
+        mpz_clear(valor_base_10);
+        return 1;
     }
-    while (baseEntrada <= 1 || baseEntrada > 36); // Base validation
 
-    base_conversao_digitos(baseEntrada, digitosBaseEntrada); // Fills in the valid digits for the source base
+    do {
+        printf("  Digite a base do número (2 a 36): ");
+        scanf("%d", &baseEntrada);
+        while(getchar() != '\n');
+    } while (baseEntrada <= 1 || baseEntrada > 36);
 
-    // Checks if the number's characters are valid for the specified base
-    while (!adicionarLista(numeroConvertidoInteiro, numeroUsuario, baseEntrada))
-    {
-        printf("\n                     ||INVALID NUMBER!||\n");
+    base_conversao_digitos(baseEntrada, digitosBaseEntrada);
+
+    while (!adicionarLista(numeroConvertidoInteiro, numeroUsuario, baseEntrada)) {
+        printf("\n                     ||NÚMERO INVÁLIDO!||\n");
         printf("\n ------------------------------------------------------------");
-        printf("\n|  Digits must be between (( 0 and %c )) \n", digitosBaseEntrada[baseEntrada - 1]);
+        printf("\n|  Os dígitos devem estar entre (( 0 e %c )) \n", digitosBaseEntrada[baseEntrada - 1]);
         printf(" ------------------------------------------------------------\n");
 
-        printf("\n  Enter the number to convert: ");
+        printf("\n  Digite o número que deseja converter: ");
         fgets(numeroUsuario, TAM, stdin);
-        numeroUsuario[strcspn(numeroUsuario, "\n")] = 0;
+        numeroUsuario[strcspn(numeroUsuario, "\n")] = '\0';
+
+        if (strlen(numeroUsuario) == 0) {
+            printf("Erro: Nenhum número foi digitado.\n");
+            mpz_clear(valor_base_10);
+            return 1;
+        }
     }
 
-    // Input and validation of the target base
+    // Etapa 2: Ler múltiplas bases de saída
     printf("\n ------------------------------------------------------------\n");
-    printf("| Now enter the base to convert the number to \n");
+    printf("| Informe a quantidade de bases para conversão (1-%d)        |\n", MAX_BASES);
     printf(" ------------------------------------------------------------\n");
 
-    do
-    {
-        printf("\n  Enter the target base (between 2 and 36): ");
-        scanf("%d", &baseDesejada);
+    do {
+        printf("\n  Quantidade de bases para conversão (1-%d): ", MAX_BASES);
+        scanf("%d", &quantidade_bases);
         while(getchar() != '\n');
+    } while (quantidade_bases < 1 || quantidade_bases > MAX_BASES);
+
+    for (int i = 0; i < quantidade_bases; i++) {
+        do {
+            printf("  Informe agora a %dª base (2-36): ", i+1);
+            scanf("%d", &basesDesejadas[i]);
+            while(getchar() != '\n');
+        } while (basesDesejadas[i] <= 1 || basesDesejadas[i] > 36);
     }
-    while (baseDesejada <= 1 || baseDesejada > 36);
 
-    base_conversao_digitos(baseDesejada, digitosBaseDesejada); // Fills in the valid digits for the target base
+    // Conversão para base 10
+    ConverterBase10(valor_base_10, numeroConvertidoInteiro, baseEntrada, numeroUsuario);
 
-    // Converts the number from the original base to base 10
-    long long int valor_base_10 = ConverterBase10(numeroConvertidoInteiro, baseEntrada, numeroUsuario);
+    // Conversão para cada base desejada e armazenamento na matriz
+    for (int i = 0; i < quantidade_bases; i++) {
+        ConverterBaseFinal(valor_base_10, basesDesejadas[i], resultados[i]);
+    }
 
-    // Converts from base 10 to the final base
+    // Exibir resultados
     printf("\n-------------------------------------------------------------\n");
-    printf("| Conversion Result in base %i:  ", baseDesejada);
-    ConverterBaseFinal(valor_base_10, baseDesejada);
-    printf("\n-------------------------------------------------------------\n");
+    printf("| Resultados das Conversões:                                |\n");
+    printf("-------------------------------------------------------------\n");
+    for (int i = 0; i < quantidade_bases; i++) {
+        printf("| Base %2d: %-50s |\n", basesDesejadas[i], resultados[i]);
+    }
+    printf("-------------------------------------------------------------\n");
+
+    mpz_clear(valor_base_10);
+    return 0;
 }
 
-// Generates valid characters for a given base (e.g., 0-9, A-Z)
-void base_conversao_digitos(int base, char lista_digitos[])
-{
-    for (int i = 0; i < base; i++)
-    {
-        if (i < 10)
-        {
-            lista_digitos[i] = '0' + i;
-        }
-        else
-        {
-            lista_digitos[i] = 'A' + i - 10;
-        }
+void base_conversao_digitos(int base, char lista_digitos[]) {
+    for (int i = 0; i < base; i++) {
+        lista_digitos[i] = (i < 10) ? '0' + i : 'A' + i - 10;
     }
-    lista_digitos[base] = '\0'; // Null-terminates the string
+    lista_digitos[base] = '\0';
 }
 
-// Converts each character of the entered number to its numeric value (in base 10) and validates
-bool adicionarLista(int lista[], char lista_numero[], int base_entrada)
-{
+bool adicionarLista(int lista[], char lista_numero[], int base_entrada) {
     int len = strlen(lista_numero);
-    for (int i = 0; i < len; i++)
-    {
+    for (int i = 0; i < len; i++) {
         int valor;
-        if (isdigit(lista_numero[i]))
-        {
+        if (isdigit(lista_numero[i])) {
             valor = lista_numero[i] - '0';
-        }
-        else if (isalpha(lista_numero[i]))
-        {
+        } else if (isalpha(lista_numero[i])) {
             valor = toupper(lista_numero[i]) - 'A' + 10;
+        } else {
+            return false;
         }
-        else
-        {
-            return false; // Invalid characters
-        }
-        if (valor >= base_entrada)
-        {
-            return false; // Digit out of range for the base
-        }
+        if (valor >= base_entrada) return false;
         lista[i] = valor;
     }
     return true;
 }
 
-// Converts a number from any base to base 10
-long long int ConverterBase10(int lista_entrada[], int base_inicial, char lista_input[])
-{
-    long long int valor = 0;
-    int potencia = strlen(lista_input);
+void ConverterBase10(mpz_t resultado, int lista_entrada[], int base_inicial, char lista_input[]) {
+    mpz_set_ui(resultado, 0);
+    mpz_t base, potencia, temp;
+    mpz_inits(base, potencia, temp, NULL);
 
-    for(int i = 0; i < potencia; i++)
-    {
-        valor = valor + (long long int)lista_entrada[i] * (long long int)pow(base_inicial, potencia - 1 - i);
+    int len = strlen(lista_input);
+    mpz_set_ui(base, base_inicial);
+
+    for (int i = 0; i < len; i++) {
+        int expoente = len - 1 - i;
+        mpz_ui_pow_ui(potencia, base_inicial, expoente);
+        mpz_mul_ui(temp, potencia, lista_entrada[i]);
+        mpz_add(resultado, resultado, temp);
     }
-    return valor;
+
+    mpz_clears(base, potencia, temp, NULL);
 }
 
-// Recursively converts a number from base 10 to the target base
-void ConverterBaseFinal(long long int valor_base_10, int base_final)
-{
-    long long int valor = -1;
-
-    if(valor_base_10 > 0)
-    {
-        valor = valor_base_10 % base_final;
-        ConverterBaseFinal(valor_base_10 / base_final, base_final); // Recursive call
+void ConverterBaseFinal(mpz_t valor_base_10, int base_final, char resultado[]) {
+    mpz_t valor_temp;
+    mpz_init_set(valor_temp, valor_base_10);
+    
+    int i = 0;
+    
+    if (mpz_cmp_ui(valor_temp, 0) == 0) {
+        resultado[0] = '0';
+        resultado[1] = '\0';
+        return;
     }
 
-    if(valor >= 0 && valor < 10)
-    {
-        printf("%i", (int)valor); // Digits from 0 to 9
+    while (mpz_cmp_ui(valor_temp, 0) > 0) {
+        mpz_t resto;
+        mpz_init(resto);
+        mpz_tdiv_qr_ui(valor_temp, resto, valor_temp, base_final);
+        unsigned long digito = mpz_get_ui(resto);
+        
+        if (digito < 10) {
+            resultado[i++] = '0' + digito;
+        } else {
+            resultado[i++] = 'A' + digito - 10;
+        }
+        
+        mpz_clear(resto);
     }
-    else if(valor >= 10)
-    {
-        printf("%c", (char)(valor + 'A' - 10)); // Digits from A to Z
+    
+    resultado[i] = '\0';
+    
+    // Inverter a string
+    int inicio = 0, fim = i - 1;
+    while (inicio < fim) {
+        char temp = resultado[inicio];
+        resultado[inicio] = resultado[fim];
+        resultado[fim] = temp;
+        inicio++;
+        fim--;
     }
+    
+    mpz_clear(valor_temp);
 }
